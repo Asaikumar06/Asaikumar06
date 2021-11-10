@@ -1,0 +1,1124 @@
+;**********************************************************;
+;*********************================*********************;
+;*********************| Explore Busy |*********************;
+;*********************================*********************;
+;**********************************************************;
+
+[#Menu: Gateway of Tally]
+	
+	Add : Key Item  : Before : @@locQuit  : "Expiry Report ": E : Display : EBXRptMain	: $$IsAccountingOn:$$CurrentCompany
+	
+	
+[Report: EBXRptMain]
+	Title 		: "Stock Item Expiry report "
+	Print Set	: Report Title : "Stock Item Expiry report"
+	Variable	: SVFromDate, SVToDate, IsItemBatchReport
+	Set 		: SVFromDate 	: $$MonthStart:##SVCurrentDate
+	Set 		: SVToDate 		: $$MonthEnd:##SVCurrentDate 
+	Form 		: EXRptMain
+[Form: EXRptMain]
+	Part 			: PMainTitle , PExpiryTitle,  PExpiryBody	
+	Background 		: Released Pale Yellow
+	Buttons 		: PrintButton, ExportButton, ChangePeriod
+	
+	BottomButton 	: FilterButton, ValueButton 
+	Bottom Toolbar Buttons : BottomToolBarBtn1, BottomToolBarBtn8, BottomToolBarBtn9, BottomToolBarBtn10, BottomToolBarBtn11, BottomToolBarBtn12
+	
+	Space Top 		: if $$InPrintMode Then ##SVSpaceTop else 0.05 inches
+	Space Bottom 	: if $$InPrintMode Then 0.5 else 0 inches
+	Space Left 		: if $$InPrintMode AND $$InPixelMode then 0.5 else 0 inches
+	Space Right 	: if $$InPrintMode AND $$InPixelMode then 0.25 else 0 inches
+	Option 			: Small Size Form : NOT $$InPrintMode 
+	Width			:	100% Screen
+	Height			:	100% Screen
+
+[Part: PMainTitle]
+	Line 		: LMainTitle
+	Invisible 	: $$InPrintMode
+[Line: LMainTitle]
+	Field : Name Field
+	Right Field: Simple Field
+	Local : Field: Name Field 	: Set as: "Stock Expiry Report"
+	Local : Field: Simple Field : Set as: $$String:##SVFromDate + " to " + $$String:##SVToDate
+	Local : Field: Simple Field : Width : 30 % Page
+	Local : Field: Simple Field : Align	: Right
+
+	[Part: PExpiryTitle]
+		Line 	: LExpiryTitle
+		Border 	: Column Titles
+
+	[Line: LExpiryTitle]
+		Field : FSrNo,FSrNo2,FIName 
+		Right Field: FMfdOn,FExpiryDt,FRemainDays, FCloValue,FCloQty 
+		Local : Field : Default : Type 	: String
+		Local : Field : Default : Align : Center
+		Local : Field : Default : Style : Normal Bold
+		Local : Field : Default : Line 	: 0
+		Local : Field : FSrNo2 		: Set As : ""
+		Local : Field : FSrNo 		: Set As 	: "Sr.No"
+		Local : Field : FIName 		: Set as	: "Item Name"
+		Local : Field : FGrpName 	: Set as 	: "Group Name" 
+		Local : Field : FStkCat		: Set as 	: "Category"
+		Local : Field : FStkUnit 	: Set as 	: "Units"
+		Local : Field : FStkGodown 	: Set as 	: "Godown Name"
+		Local : Field : FMfdOn 		: Set as 	: "Mfd. Date"
+		Local : Field : FExpiryDt 	: Set as 	: "Expiry Date"
+		Local : Field : FCloValue 	: Set as 	: "Stock Value"
+		Local : Field : FRemainDays : Set as 	: "Remain Days As On " + $$String:#SVToDate
+		Local : Field : FCloQty 	: Set as 	: "Closing Stock"
+
+
+[Part: PExpiryBody]
+	Line 	: LExpiryBody 
+	Repeat 	: LExpiryBody : CStkItem 
+	Bottom Line: LExpiryTotal
+	Scroll 	: Vertical
+	Common Border : Yes
+	Total	: FCloValue, FCloQty
+	[Line: LExpiryBody]
+		Field 	: FSrNo,FSrNo2, FIName, StockItemName
+		Right Field: FMfdOn,FExpiryDt,FRemainDays, FCloValue,FCloQty; FStkGodown, 
+		Local 	: Field : Default 			: Style : Normal
+		Local 	: Field : FCloQty 		: Set as: $StkClBalance
+		Local 	: Field : FStkGodown 	: Set as : ""
+		Local 	: Field : FSrNo2 		: Set As : ""
+		Local 	: Field : FSrNo2 		: Width: 1
+		Local 	: Field : StockItemName		: Set as: $Name
+		Local 	: Field : StockItemName		: Invisible: YES
+		Local 	: Field : Default 			: Color	 : Blue
+		Border	: Thin Top
+		Explode	: PBatchWise : Yes
+		
+[Field: FRemainDays1]
+	Use: FRemainDays
+	Set as : ""
+[Collection: CStkItem]
+	Type    : Stock Item
+	Filter	: IsItemBatchEnabled
+
+[Collection: CExpirySrc]	
+	Type	: Batch
+	Fetch	: Name, Parent, ExpiryPeriod, ClosingBalance, GodownName, MfdOn, ClosingAsOnDate
+	Child of: #FIName
+[Collection: CExpiry] 
+	Use		: CExpirySrc
+	Compute : DRemain :($$Date:$Expiryperiod) - ($$Date:#SVToDate)
+	Compute : GodownName : $GodownName
+	Sort	: @@Default  : $DRemain
+	
+[Collection: CGodExp]
+	Type        : Batch
+	Child of    : #StockItemName
+
+	Fetch		: GodownName, BatchName, IsBatchWiseOn, Name,  OpeningBalance
+	Fetch		: OpeningValue, StkClBalance, TBalClosing, StkOpBalance, TBalOpening, TBalCredits, StkOutQty, StkInQty, TBalDebits
+	Fetch		: ClosingRate
+	Filter      : BatchIngdwn, IsGodownofBalType
+
+	Compute		: IsEmptyObject	: $$IsEmptyObject
+	Compute		: IsWithItems	: Yes
+
+[Part:PBatchWise]
+	Line	: LBatchWise
+	Repeat	: LBatchWise : CExpiry
+	Scroll	: Vertical
+[Line: LBatchWise]
+	Field 		  : FSrNo, FSrNo2 ,FIName 
+	Right Field: FMfdOn,FExpiryDt,FRemainDays, FCloValue,FCloQty; FStkGodown, 
+	Local : Field : FSrNo 		: Set As : ""
+	Local : Field : FIName 		: Indent : 1
+	Local : Field : FSrNo2 		: Set As : $$String:$$Line + "  :"
+	Local : Field : FSrNo2 		: Width	 : 3
+	Local : Field : FSrNo2 		: Style  : Normal
+	Local : Field : Default 		: Style  : Normal Italic
+	Local : Field : Default 		: Color	 : If $$Number:#FRemainDays <= 0 Then @@SV_FIELD1 else @@SV_FIELD10
+
+	[Line:LExpiryTotal]
+		Border 	: Totals
+		Field : FSrNo,FSrNo2,FIName 
+		Right Field: FMfdOn,FExpiryDt,FRemainDays, FCloValue,FCloQty; FStkGodown, 
+		Local : Field : Default 	: Type 	: String
+		Local : Field : Default 	: Align : Center
+		Local : Field : Default 	: Line 	: 0
+		Local : Field : Default 	: Style : Normal 
+		Local : Field : FSrNo 		: Set As : ""
+		Local : Field : FSrNo2 		: Set As : ""
+		Local : Field : FSrNo 		: Border: Thin Right
+		Local : Field : FIName 		: Set as : ""
+		Local : Field : FStkGodown 	: Set as : ""
+		Local : Field : FMfdOn 		: Set as : ""
+		Local : Field : FExpiryDt 	: Set as : ""
+		Local : Field : FRemainDays 	: Set as : ""
+		Local : Field : FCloValue 	: Set as : $$Total:FCloValue
+		Local : Field : FCloQty		: Set as : $$Total:FCloQty
+
+
+[Field: FDif1]
+	Use		: Name Field
+	Border 	: Thin Left
+	Align	: Center
+	Style	: Normal
+	
+[Field: FDif2]
+	Use		: FDif1
+	Align	: Left
+
+	
+[ Field : FSrNo]
+	Use 	: FDif1
+	Set as 	: $$Line 
+	Width 	: 5
+	
+[ Field : FSrNo2]
+	Use 	: FSrNo
+	Border	: Thin Left
+	Align 	: Right
+	
+[ Field : FIName] 	
+	Use 	: FDif2
+	Set as	:  $Name 
+	Full Width: YES
+	Delete: Border
+	
+[ Field : FBatchName] 
+	Use 	: FDif2
+	Set As 	: $BatchName 
+	Width 	: 12
+
+[ Field :FMfdOn]
+	Use 	: Uni Date Field
+	Set As	: $MfdOn 
+	Align 	: Center
+	Border 	: Thin Left
+	Width	: 8
+
+[ Field : FExpiryDt] 
+	Use 	: FMfdOn
+	Set As  : $Expiryperiod
+
+[ Field : FCloValue] 
+	Use 	: Amount Field
+	Set As 	: $ClosingValue
+	Width 	: 10
+	Border 	: Thin Left
+	
+[ Field :FRemainDays]
+	Use		: FDif1
+	Set as 	: $$Number:$DRemain
+	Width	: 10
+
+[ Field :FCloQty] 
+	Use 	: Qty Primary field
+	Set as 	: $ClosingBalance
+	Border 	: Thin Left Right
+	Width 	: 10
+	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;   I N V O I C I N G    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[#Part: CMP Tax Info]
+
+Add : Line : At End : CMP EBMLTL
+
+[Line: CMP EBMLTL]
+
+Right Field : Medium Prompt
+Local : Field : Medium Prompt : Set as : "Drug Lic No. :"
+Option : Small Size Line
+Space Top : 0.4
+
+[#Part: CMP Tax Value]
+
+Add : Line : At End : CMP EBMLVAL
+
+[Line: CMP EBMLVAL]
+
+Field : Name Field
+Local : Field : Name Field : Storage : CMPEBMLVAL
+Local : Field : Name Field : Full width : Yes
+Local : Field : Name Field : Max : 200
+Local : Field : Name Field : Line : 2
+Option : Small Size Line
+Space Top : 0.4
+
+
+[#Part: LED Other Details]
+
+Add : Lines : At End : LED DLNo
+
+[Line: LED DLNo]
+
+Fields : Medium Prompt, LED DLNo
+Local : Field : Medium Prompt : Set as : $$LocaleString:"Drug Lic.No :"
+Invisible : NOT @@IsIndian
+
+
+
+[Field: LED DLNo]
+
+Use : Name Field
+Storage : LEDDLNo
+Full width : YEs
+Line : 2
+Max : 200
+
+[#Part: EXPINV SaleSalesTax]
+Add : Lines : AT END : SalesHCmpDLicno,SalesBuyerDLIC
+
+Line: SalesHCmpDLicno
+
+[Line: SalesHCmpDLicno]
+
+Space Top : 0.05
+Field : Short Prompt,Name Field
+Local : Field : Short Prompt : Set As : "Our DL No:"
+Local : Field : Name Field : Set As : $CMPEBMLVAL:Company:##SVCurrentCompany
+Local : Field : Name Field : Full width : Yes
+Local : Field : Name Field : Style : Normal
+
+[System: UDF]
+
+CMPEBMLVAL : String : 21110
+LEDDLNo : String : 21111
+
+
+[Line: SalesBuyerDLIC]
+
+Field : Short Prompt ,Name Field
+Local : Field : Short Prompt: Set As : "Party DL No:"
+Local : Field : Name Field : Set As : $LEDDLNo:Ledger:$PartyLedgerName
+Local : Field : Name Field : Full width : Yes
+Local : Field : Name Field : Style : Normal
+
+[#Part: VTYP BehaviourMain]
+Option : VTYP BehaveMain EBYT VchTypeConfirm : @@IsEBYTVchType
+
+[!Part : VTYP BehaveMain EBYTVchTypeConfirm]
+Add : Line : After : VTYP PrintSave :VTYP EBYT VchTypeConfirm
+
+[Line : VTYP EBYT VchTypeConfirm]
+Field : Long Prompt, Logical Field
+Local : Field : Long Prompt : Set as : "Print GST Format ?"
+Local : Field : Long Prompt : Width : @@LongWidth
+Local : Field : Logical Field : Storage : EBYTVchTypeConfirm1 
+
+[System : Formula]
+IsEBYTVchType : $$IsSales:$Parent
+IsEBYTNewAllow : $EBYTVchTypeConfirm1:VoucherType:$VoucherTypeName
+
+[System : UDF]
+EBYTVchTypeConfirm1 : Logical : 1781
+
+[#Form : Sales Color]
+Option: EBYTSalesEBYT Color: @@IsEBYTNewAllow
+
+[!Form:EBYTSalesEBYT Color]
+Delete : Print
+Add : Print : STC GST INVOICE EBYT
+
+[Report :STC GST INVOICE EBYT]
+Use : Printed Invoice
+Delete: Form : Printed Invoice
+Form : STC GST INVOICE EBYT
+
+[Form:STC GST INVOICE EBYT]
+Space Left: 0.50 Inch
+Space Bottom: 0.50 Inch
+Space Right: 0.50 Inch
+Space Top:0.50 Inch
+
+Part: EBYT Opening Page Break, EBYT Invoice Body
+Bottom Part:EBYT GST analisys Bankdetails ledgerentries, EBYTInvoiceAmtwordandamount, EBYTSingnatureClosingBalanceTerms,EBYTJuri;;EBYT Invoice Total, EBYT Sing Off, EBYT Terms, EBYT Age, EBYT Juridiction
+
+Page Break : ClEBYT Page Break, EBYT Opening Page Break
+
+[Part:ClEBYT Page Break]
+Lines : GIEBYT ClPgBrk
+
+[Line: GIEBYT ClPgBrk]
+Fields : Simple Field
+Local: Field: Simple Field : Set As : "Continued..."
+Local: Field: Simple Field : FullWidth : Yes
+Local: Field: Simple Field : Align : Right
+Border : Full Thin Top
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[Style: EBFS01]
+Font: Calibri (Body)
+Height: 9
+
+[Style:GWW10]
+Font:Calibri (Body)
+Height:10
+
+[Style:EBFS]
+Use:EBFS01
+Bold: Yes
+
+[Style:GWLWB]
+Use: EBFS01
+Bold: Yes
+
+[Style: GComp]
+Font: Times New Roman
+Height:22
+Bold: Yes
+
+
+[Style: Party]
+Font: Lucida Calligraphy
+Height:19
+Bold: Yes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+[Part: EBYT Opening Page Break]
+Part: EBYT Invoice Title, EBYT CMP Details, EBYT Leading Details, EBYT Coloumn Titles
+Vertical: Yes
+
+[Part:EBYT Invoice Title]
+Line:EBYT Invoice Title
+
+[Line:EBYT Invoice Title]
+Field: Simple Field
+Right Field:Name Field
+Local: Field: Simple Field: Set as: "GST INVOICE"
+Local: Field: Simple Field: Style: Large Bold
+Local: Field: Simple Field: Space Left: 55
+Local: Field: Simple Field: Full Width: Yes
+Local: Field: Name Field: Set as:If @@GetCopyNum = 1 Then "ORIGINAL FOR RECIPIENT" Else +
+If @@GetCopyNum = 2 Then $$LocaleString:"DUPLICATE FOR TRANSPOTER" Else +
+If @@GetCopyNum = 3 Then $$LocaleString:"TRIPLICATE FOR SUPPLIER " Else +
+If @@GetCopyNum = 4 Then $$LocaleString:"EXTRA COPY" Else $$LocaleString:"EXTRA COPY"
+
+
+
+
+[System : Event]
+appstart: system start : true : call : Myfunction1
+
+[FUNCTION : MYFUNCTION1]
+01 : DISPLAY : CMPInfoReport
+
+[REPORT : CMPInfoReport]
+FORM : CMPInfoReport
+TITLE : "Explore Busy Youtube Channel"
+
+[FORM : CMPInfoReport]
+part : CMPINFOPART
+HEIGHT : 80% screen
+WIDTH : 50% screen
+
+
+[PART : CMPINFOPART]
+LINE : CMPInfoLINE1, CmpInfoline3
+BOTTOM LINE : CMPInfoLINE2
+;;height : 30% screen
+
+[LINE : CmpInfoLINE1]
+FIELD : NAME FIELD
+LOCAL : FIELD : NAME FIELD : INFO : "Explore Busy" + $$newline + "" + $$newline +"Youtube Channel"
+LOCAL : FIELD : NAME FIELD : STYLE : Mystyle
+LOCAL : FIELD : NAME FIELD : COLOR : Blue
+LOCAL : FIELD : NAME FIELD : FULL WIDTH : YES
+local : field : name field : line : 3
+local : field : name field : align : centre
+
+
+[Style:Mystyle]
+ Font: Times New Roman
+ Height:15
+ Bold: no
+ Italic : No
+
+[Style:Mystyle1]
+ Font: Times New Roman
+ Height:12
+ Bold: no
+ Italic : No
+
+
+[Style:Mystyle2]
+ Font: Times New Roman
+ Height:13
+ Bold: no
+ Italic : No
+
+
+
+[LINE :CMPInfoLINE3]
+space top : 2 
+space top : 2
+FIELD : NAME FIELD
+LOCAL : FIELD : NAME FIELD : INFO : "   Experts in " +$$NEWLINE + "  " + $$newline + "   >  Tally.Erp 9  " +$$NEWLINE + "  " + $$newline + "   >  Tally Customization" +$$NEWLINE + " " + $$newline + "   >  VBA Programming" + $$newline + " " + $$NEWLINE + "   >  Microsoft Word" + $$NEWLINE + " " + $$newline + "   >  Microsoft Excel" +$$NEWLINE + " " + $$newline + "   >  Microsoft Powerpoint" + $$NewLine + " " + $$newline + "Visit and Subscribe Our YouTube Channal! Thanks"
+LOCAL : FIELD : NAME FIELD : STYLE : Mystyle1
+LOCAL : FIELD : NAME FIELD : LINES : 14
+LOCAL : FIELD : NAME FIELD : BORDER :THIN top BOTTOM
+local : field : name field : full width : yes
+
+[line : CMpInfoline2]
+FIELD : NAME FIELD
+LOCAL : FIELD : NAME FIELD : INFO : "Visit and Subscribe Our YouTube Channel! Thanks"+$$NewLine + "" +$$NewLine + "https://www.youtube.com/ExploreBusy" + $$newline + ""+  $$newline +"Press (Esc) Continue"
+local : field : name field : style : Mystyle2
+LOCAL : FIELD : NAME FIELD : COLOR : Blue
+local : field : name field : align : centre
+local : field : name field : full width : yes
+Local : Field : Name Field : Line : 5
+;;
+[Part:EBYT CMP Details]
+Part: EBYT CMP Name Details
+
+[Part: EBYT CMP Name Details]
+Line: EBYT CMP Name, EBYT CMP Address, EBYT CMP Contact Details
+
+[Line: EBYT CMP Name]
+Field: Name Field
+Local: Field: Name Field: Set as: @@CmpMailName
+Local: Field: Name Field: Style:GComp
+Local: Field: Name Field: Full Width: Yes
+
+[Line:EBYT CMP Address]
+Field: Name Field
+Local: Field: Name Field: Set as: $$FullList:CompanyAddress:$Address
+Local: Field: Name Field: Full Width: Yes
+Local: Field: Name Field: Style:EBFS01
+Local: Field: Name Field: Line:0
+
+[Line:EBYT CMP Contact Details]
+Field: Medium Prompt, Simple Field, Simple Prompt, Name Field
+Local: Field: Medium Prompt: Set as: "Contact No"
+Local: Field: Medium Prompt: Style: EBFS01
+Local: Field: Simple Field: Style: EBFS01
+Local: Field: Simple Field: Set as: $PhoneNumber:Company:##SVCurrentCompany +" "+ $MobileNumbers:Company:##SVCurrentCompany
+Local: Field: Simple Prompt: Style:EBFS01
+Local: Field: Simple Prompt: Set as: "PAN No."
+Local: Field: Simple Prompt: Space Left: 5
+Local: Field: Name Field: Style: EBFS01
+Local: Field: Name Field: Set as: $IncomeTaxNumber:Company:##SVCurrentCompany+" "+ "DL No. :"+" "+$CMPEBMLVAL:Company:##SVCurrentCompany
+
+
+[Part:EBYT Leading Details]
+Left Part: EBYT Customer Details
+Right Part: EBYT Invoice Details
+Border: Thick Cover
+
+[Part:EBYT Customer Details]
+Line:EBYT Customer Details Title, EBYT Customer Name, EBYT Customer Address, EBYT Customer State Name, EBYT Customer GST No, EBYT Customer Contact
+Width: 70% Page
+
+
+
+[Line:EBYT Customer Details Title]
+Field: Simple Field
+Local: Field: Simple Field : Set as: "Details for Buyer (Billed & Shipped To )"
+Local: Field: Simple Field: Style:EBFS
+Local: Field: Simple Field: Full Width: Yes
+
+[Line:EBYT Customer Name]
+Field: Simple Field
+Local: Field: Simple Field: Set as: @@SimpleOtherPartyName
+Local: Field: Simple Field: Style: Party
+Local: Field: Simple Field: Full Width: Yes
+Space Top:1
+
+[Line:EBYT Customer Address]
+Field: Simple Field
+Local: Field: Simple Field: Set as: $$FullList:BasicBuyerAddress:$BasicBuyerAddress
+Local: Field: Simple Field: Style: EBFS01
+Local: Field: Simple Field: Full Width: Yes
+Local: Field: Simple Field: Line:0
+
+[Line:EBYT Customer State Name]
+Field: Simple Field
+Local: Field: Simple Field: Set as: "State Name"+" : "+ $StateName +" "+ "Code :"+" "+ $$getgststatecode:mad:StateName
+Local: Field: Simple Field: Local Formula:StateName : If NOT ($$IsEmpty:$StateName OR $$IsSysName:NotApplicable:$StateName) Then $StateName Else $LedStateName:Ledger:mad:PartyName
+Local: Field: Simple Field: Full Width: Yes
+Local: Field: Simple Field: Style: EBFS01
+
+[Line:EBYT Customer GST No]
+Field: Simple Field
+Local: Field: Simple Field: Set as: "GSTIN No : " +" "+ $PartyGSTIN +" "+" PAN No :"+" "+$IncomeTaxNumber:Ledger:$BasicBuyerName+" "+"DL NO.:"+" "+$LEDDLNo:Ledger:$PartyLedgerName
+Local: Field: Simple Field: Full Width: Yes
+Local: Field: Simple Field: Style: EBFS01
+
+[Line:EBYT Customer Contact]
+Field: Simple Field
+Local: Field: Simple Field: Set as: "Contact Details :"+" "+ @@VchContactNo
+Local: Field: Simple Field: Style: EBFS01
+Local: Field: Simple Field: Full Width: Yes
+
+[Part:EBYT Invoice Details]
+Line: EBYT Invoice No, EBYT Invoice Date, EBYT PO No,EBYT PO Date, EBYT DC No, EBYT DC Date
+Width: 30% Page
+Border: Thin Left
+
+[Line:EBYT Invoice No]
+Field: Medium Prompt,Simple Field
+Local: Field: Medium Prompt: Set as: "Invoice No"
+Local: Field: Medium Prompt: Style: EBFS
+Local: Field: Medium Prompt: Width: 15
+Local: Field: Simple Field: Set as: $VoucherNumber
+Local: Field: Simple Field: Style: EBFS01
+Local: Field: Simple Field: Full Width: Yes
+Space Top:1
+
+[Line:EBYT Invoice Date]
+Field: Medium Prompt, Simple Field
+Local: Field: Medium Prompt: Set as: "Dated"
+Local: Field: Medium Prompt: Style: EBFS
+Local: Field: Medium Prompt: Width: 15
+Local: Field: Simple Field: Set as: $Date
+Local: Field: Simple Field: Style: EBFS01
+Local: Field: Simple Field: Full Width: Yes
+[Line:EBYT PO No]
+Field: Medium Prompt, Simple Field
+Local: Field: Medium Prompt: Set as: "PO No."
+Local: Field: Medium Prompt: Style: EBFS
+Local: Field: Medium Prompt: Width: 15
+Local: Field: Simple Field: Set as: $BasicPurchaseOrderNo
+Local: Field: Simple Field: Style: EBFS01
+Local: Field: Simple Field: Full Width: Yes
+
+
+[Line:EBYT PO Date]
+Field: Medium Prompt, Simple Field
+Local: Field: Medium Prompt: Set as: "PO Date."
+Local: Field: Medium Prompt: Style: EBFS
+Local: Field: Medium Prompt: Width: 15
+Local: Field: Simple Field: Set as: $BasicOrderDate
+Local: Field: Simple Field: Style: EBFS01
+Local: Field: Simple Field: Full Width: Yes
+
+[Line:EBYT DC No]
+Field: Medium Prompt, Simple Field
+Local: Field: Medium Prompt: Set as: "Delivery Challan No"
+Local: Field: Medium Prompt: Style: EBFS
+Local: Field: Medium Prompt: Width: 15
+Local: Field: Simple Field: Set as: $BasicShipDeliveryNote
+Local: Field: Simple Field: Style: EBFS01
+Local: Field: Simple Field: Full Width: Yes
+
+[Line:EBYT DC Date]
+Field: Medium Prompt, Simple Field
+Local: Field: Medium Prompt: Set as: "Delivery Challan Date"
+Local: Field: Medium Prompt: Style: EBFS
+Local: Field: Medium Prompt: Width: 15
+Local: Field: Simple Field: Set as:$BasicShippingDate
+Local: Field: Simple Field: Style: EBFS01
+Local: Field: Simple Field: Full Width: Yes
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+[Part: BristleItemsDes]
+
+Line : BristleStockGroup
+Repeat : BristleStockGroup : BristleStockGroup
+
+[Line: BristleStockGroup]
+
+Use : BristleItemsDesHead
+
+Local : Field : BristleItemMarks : Set As : ""
+Local : Field : BristleItemPackages : Set As : ""
+Local : Field : BristleItemDescription : Set As : $Name
+Local : Field : BristleItemQty : Set As : ""
+Local : Field : BristleItemRate : Set As : ""
+Local : Field : BristleItemAmount : Set As : ""
+
+Local : Field : BristleItemDescription : Style : Normal Bold
+
+Local : Field : BristleItemDescription : Align : Centre
+
+Local : Field : BristleItemDescription : Variable : StockGroupName
+
+Local : Field : BristleItemDescription : SubTitle : Yes
+
+Local : Field : BristleItemDescription : Border : Flush Thin Bottom
+
+
+Explode : BristleStockItemsPart : NOT $$IsEmpty:$VchStkGrpValue
+Empty : NOT @@InVoucherList
+[Part:EBYT Coloumn Titles]
+Line:EBYT Invoice Body Title,EBYT Invoice Body Title1
+Border: Thick Cover
+Common Border: Yes
+
+[Part: EBYT Invoice Body]
+Part:EBYT Invoice Body Coloumns
+Vertical: Yes
+Border: Thin Cover
+
+[Part:EBYT Invoice Body Title]
+Line:EBYT Invoice Body Title,EBYT Invoice Body Title1
+Common Border: Yes
+
+[Line:EBYT Invoice Body Title]
+Use: EBYT Invoice Body Coloumns
+
+Local: Field: Default: Type: String
+Local: Field: Default: Style: EBFS
+Local: Field: Default: Align: Center
+
+Local: Field:EBYT SrNo: Set as: "Sr "
+Local: Field:EBYT Item Description: Set as: "Item"
+Local: Field:EBYT HSN Code: Set as: "HSN "
+Local: Field:EBYT Billed Qty: Set as: "Billed"
+Local: Field:EBYT Rate: Set as: "Rate"
+Local: Field:EBYT Gross Amt: Set as: "Gross"
+Local: Field:EBYT CGST Rate: Set as: "CGST"
+Local: Field: EBYT CGST Amt: Set as: "CGST"
+Local: Field:EBYT SGST Rate: Set as: "SGST"
+Local: Field:EBYT SGST Amt: Set as: "SGST "
+Local: Field:EBYT IGST Rate: Set as: "IGST"
+Local: Field:EBYT IGST Amount: Set as: "IGST"
+Local: Field:EBYT Item Total: Set as: "Total"
+
+Border: Thin Top
+Space Top: 0.25
+
+[Line:EBYT Invoice Body Title1]
+Use: EBYT Invoice Body Coloumns
+
+Local: Field: Default: Type: String
+Local: Field: Default: Style: EBFS
+Local: Field: Default: Align: Center
+
+Local: Field:EBYT SrNo: Set as: "No"
+Local: Field:EBYT Item Description: Set as: "Description"
+Local: Field:EBYT HSN Code: Set as: "Code"
+
+Local: Field:EBYT Billed Qty: Set as: "Qty"
+Local: Field: EBYT Rate: Set as: ""
+Local: Field:EBYT Gross Amt: Set as: "Amount"
+Local: Field:EBYT CGST Rate: Set as: "%"
+Local: Field: EBYT CGST Amt: Set as: "Amt"
+Local: Field:EBYT SGST Rate: Set as: "%"
+Local: Field:EBYT SGST Amt: Set as: "Amt"
+Local: Field:EBYT IGST Rate: Set as: "%"
+Local: Field:EBYT IGST Amount: Set as: "Amt"
+Local: Field:EBYT Item Total: Set as: ""
+
+Border: Thin Bottom
+Space Bottom: 0.25
+
+[Part:EBYT Invoice Body Coloumns]
+Line:EBYT Invoice Body Coloumns
+Repeat:EBYT Invoice Body Coloumns:Inventory Entries
+Scroll: Vertical
+Float: No
+Common Border: Yes
+
+[Line:EBYT Invoice Body Coloumns]
+Left Field: EBYT SrNo, EBYT Item Description
+Right Field: EBYT HSN Code,EBYT Billed Qty, EBYT Rate, EBYT Gross Amt,EBYT CGST Rate, EBYT CGST Amt, EBYT SGST Rate, EBYT SGST Amt,EBYT IGST Rate, EBYT IGST Amount, EBYT Item Total
+Space Top: 0.15
+Explode : EI DescExplosion : NOT $$IsEmpty:$StockItemName AND ##PRNWithItemDesc AND NOT $$IsEmpty:$BasicUserDescription
+Local: Field:EBYT SrNo: Width: 3
+Local: Field:EBYT HSN Code: Width: 4
+
+Local: Field:EBYT Billed Qty: Width: 7
+Local: Field: EBYT Rate: Width: 7
+Local: Field:EBYT Gross Amt: Width: 7
+Local: Field:EBYT CGST Rate: Width: 3
+Local: Field: EBYT CGST Amt: Width: 7
+Local: Field:EBYT SGST Rate: Width: 3
+Local: Field:EBYT SGST Amt: Width: 7
+Local: Field:EBYT IGST Rate: Width:3
+Local: Field:EBYT IGST Amount: Width:7
+Local: Field:EBYT Item Total: Width: 8
+
+Local: Field:EBYT SrNo: Border: Thin Right
+Local: Field:EBYT Part No: Border: Thin Left
+Local: Field:EBYT HSN Code: Border: Thin Left
+Local: Field:EBYT MRP Qty: Border: Thin Left
+Local: Field:EBYT Shipped:Border: Thin Left
+Local: Field:EBYT Billed Qty: Border: Thin Left
+Local: Field: EBYT Rate: Border: Thin Left
+Local: Field:EBYT Gross Amt: Border: Thin Left
+Local: Field:EBYT CGST Rate: Border: Thin Left
+Local: Field: EBYT CGST Amt: Border: Thin Left
+Local: Field:EBYT SGST Rate: Border: Thin Left
+Local: Field:EBYT SGST Amt: Border: Thin Left
+Local: Field:EBYT IGST Rate: Border: Thin Left
+Local: Field:EBYT IGST Amount: Border: Thin Left
+Local: Field:EBYT Item Total: Border: Thin Left
+
+
+
+[Field: EBYT Sr NO]
+Use: Simple Field
+Set as: $$Line
+Format: "No Zero"
+Style:EBFS01
+Align: Center
+
+[Field:EBYT HSN Code]
+Use: Simple Field
+Set as: $GSTItemHSNCodeEx
+Style:EBFS01
+
+[Field:EBYT Item Description]
+Use: Simple Field
+Set as: if NOT $$IsSysName:$StockItemName then @@InvItemName else ""
+Style: EBFS01
+Full Width: Yes
+;Line:0
+
+[Field:EBYT Billed Qty]
+Use: Qty Primary Field
+Set as: $BilledQty
+Style:EBFS01
+
+
+
+
+
+[Field:EBYT Rate]
+Use: Rate Price Field
+Set as: $Rate
+Style:EBFS01
+
+[Field:EBYT Gross Amt]
+Use:Amount Forex Field
+Set as: $Amount
+Style:EBFS01
+
+
+[Field:EBYT CGST Rate]
+Use: Number Field
+Set as: If NOT $GSTIsTransLedEx Then "" Else $GSTClsfnIGSTRateEx /2
+Format : "NoZero,Percentage"
+Set Always: Yes
+Style:EBFS01
+Invisible: If @@IGST > 0 then yes else no
+
+
+[Field:EBYT CGST Amt]
+Use: Amount Field
+Set as: $Amount * #EBYTCGSTRate / 100
+Style:EBFS01
+Set Always: Yes
+Invisible: If @@IGST > 0 then yes else no
+
+[Field:EBYT SGST Rate]
+Use: Number Field
+Set as: If NOT $GSTIsTransLedEx Then "" Else $GSTClsfnIGSTRateEx /2
+Format : "NoZero,Percentage"
+Set Always: Yes
+Style:EBFS01
+Invisible: If @@IGST > 0 then yes else no
+
+[Field:EBYT SGST Amt]
+Use: Amount Field
+Set as: $Amount * #EBYTSGSTRate / 100
+Style:EBFS01
+Set Always: Yes
+Invisible: If @@IGST > 0 then yes else no
+
+[Field:EBYT IGST Rate]
+Use: Number Field
+Set as: If NOT $GSTIsTransLedEx Then "" Else $GSTClsfnIGSTRateEx
+Format : "NoZero,Percentage"
+Set Always: Yes
+Style:EBFS01
+Invisible: If @@SGST > 0 then yes else no
+
+[Field:EBYT IGST Amount]
+Use: Amount Field
+Set as: $Amount * #EBYTIGSTRate / 100
+Style:EBFS01
+Set Always: Yes
+Invisible: If @@SGST > 0 then Yes else no
+
+[Field:EBYT Item Total]
+Use: Amount Field
+Set as: #EBYTGrossAmt + #EBYTCGSTAmt + #EBYTSGSTAmt
+Set Always: Yes
+Style:EBFS01
+
+[Line:EBYT Invoice Body Coloumns Total]
+Use: EBYT Invoice Body Coloumns
+
+Local: Field: Default: Type: String
+Local: Field: Default: Style: EBFS
+Local: Field: Default: Align: Center
+
+Local: Field:EBYT SrNo: Set as: ""
+Local: Field:EBYT Item Description: Set as: "TOTAL"
+Local: Field:EBYT HSN Code: Set as: ""
+Local: Field:EBYT Billed Qty: Set as: ""
+Local: Field: EBYT Rate: Set as: ""
+Local: Field:EBYT Gross Amt: Set as: $$CollAmtTotal:InventoryEntries:$Amount
+Local: Field:EBYT CGST Rate: Set as: ""
+Local: Field: EBYT CGST Amt: Set as: $$FilterAmtTotal:LedgerEntries:CGST1:$Amount
+Local: Field:EBYT SGST Rate: Set as: ""
+Local: Field:EBYT SGST Amt: Set as: $$FilterAmtTotal:LedgerEntries:SGST1:$Amount
+
+Local: Field:EBYT Item Total: Set as: $Amount
+Border: Thin Top Bottom
+Space Bottom: 0.25
+Space Top: 0.25
+
+[System: Formula]
+SGST :$$FilterAmtTotal:LedgerEntries:SGST1:$Amount
+SGST1 :$Name:Ledger:$LedgerName Contains $$LocaleString:"SGST"
+
+CGST :$$FilterAmtTotal:LedgerEntries:CGST1:$Amount
+CGST1 :$Name:Ledger:$LedgerName Contains $$LocaleString:"CGST"
+
+IGST :$$FilterAmtTotal:LedgerEntries:IGST1:$Amount
+IGST1 :$Name:Ledger:$LedgerName Contains $$LocaleString:"IGST"
+
+Round :$$FilterAmtTotal:LedgerEntries:Round1:$Amount
+Round1 :$Name:Ledger:$LedgerName Contains $$LocaleString:"Round"
+
+[Part:EBYT GST analisys Bankdetails ledgerentries]
+Left Part:VCH GST AnalysisDetails
+Right Part: EBYTBankDetails, EBYTLedgerEnteries
+Border: Thick Cover
+Common Border:Yes
+
+
+[#Part:VCH GST AnalysisDetails] 
+Delete:Border : Thin Box
+
+[#Part:VCH GST AnalysisDetails]
+Width:50% Page
+
+[Part:EBYTBankDetails]
+Use:EXPINV BankDetails
+Border: Thick Left
+
+[#Line: EXPINV BankTitle]
+
+Fields : Simple Field
+Local : Field : Simple Field : Set as : $$LocaleString:"Company's Bank Details" ;;; To Display Company's Bank Details
+Local : Field : Simple Field : Full Width: Yes
+Local : Field : Simple Field : Style:EBFS
+Space Top:0.5
+Space Bottom:0.25
+
+[#Line: EXPINV BankName]
+
+Fields : Medium Prompt, EXPINV BankName
+Local : Field : Medium Prompt : Set as : $$LocaleString:"Bank Name :" ;;; To Display Bank Name
+Local : Field : Medium Prompt : Width : 18% Page
+Local : Field : Medium Prompt : Style:EBFS
+Local : Field:EXPINV BankName:Style:EBFS01
+
+[#Line: EXPINV BankAccNo]
+
+Fields : Medium Prompt, EXPINV BankAccountNo
+Local : Field : Medium Prompt : Set as : $$LocaleString:"A/c No. :" ;;; To Display A/c No.
+Local : Field : Medium Prompt : Width : 18% Page
+Local : Field : Medium Prompt : Style:EBFS
+Local : Field:EXPINV BankAccountNo:Style:EBFS01
+
+[#Line: EXPINV BankBranchInfo]
+
+Fields : Medium Prompt, EXPINV BankBranchName
+Local : Field : Medium Prompt : Set as : $$LocaleString:"Branch & IFS Code :" ;;; To Display Branch & IFS Code
+Local : Field : Medium Prompt : Width : 18% Page
+Local : Field : Medium Prompt : Style:EBFS
+Local : Field:EXPINV BankBranchName:Style:EBFS01
+
+
+
+[Part:EBYTLedgerEnteries]
+Line:EBYTLedgerEnteries
+Repeat:EBYTLedgerEnteries:Ledger Entries
+Border: Thick Left
+Common Border: Yes
+;Scroll: Vertical
+Float: No
+
+
+[Line:EBYTLedgerEnteries]
+Field: EBYTLedgerName, EBYTLedgerPercentage,EBYTPercentageSing, EBYTLedgerAmount
+Remove if: $LedgerName = $PartyLedgerName
+
+[Field:EBYTLedgerName]
+Set as : if ##SATCSDetails AND @@TaxLedgerHasTCS then $$LocaleString:"TCS : Income Tax" else +
+if NOT $$IsSysName:$LedgerName then $LedgerName else "" ;;; used to print on invoice
+
+Style:EBFS
+Align : Right
+FullWidth : Yes
+AbatementVal: If $$Number:$STXAbatementRate = 0 Then $$String:"0" Else $$String:$STXAbatementRate
+LedNarr : (@@IsSales AND ##SALedgerNarr) OR (@@IsPurchase AND ##PULedgerNarr) AND $$Filtercount:LedgerEntries:LedgerNarrFltr > 0
+Option : LeftAlignField : @@AcctsInvoice
+Width:8.7
+
+[Field:EBYTLedgerPercentage]
+Use : Rate Price Field
+Type : Number
+Align : Right
+Format : "NoZero,Decimals:-1"
+Style:EBFS01
+Set as : if ##SATCSDetails AND @@TaxLedgerHasTCS AND NOT $$IsSysName:$TDSRateName:Ledger:$LedgerName then @@TCSITTaxRate else +
+$BasicRateOfInvoiceTax
+Inactive : $$IsSysName:$LedgerName
+Invisible : NOT @@InvWithRate
+Border: Thick Left
+Width: 4
+
+[Field:EBYTPercentageSing]
+Set as:if $$IsEmpty:$BasicRateOfInvoiceTax then "" else "%"
+Set By Condition : @@TaxLedgerHasTCS AND NOT ($$IsSysName:$TDSRateName:Ledger:$LedgerName) : If $$IsEmpty:mad:@TCSITTaxRate Then "" Else "%"
+Inactive : $$IsSysName:$LedgerName
+Invisible : NOT @@InvWithRate
+Width: 2
+Style:EBFS01
+
+[Field:EBYTLedgerAmount]
+Use : Amount Forex Field 
+Set as : $$SignedAmount:$Amount:mad:@VchOpposite
+Border: Thick Left
+Align: Right
+Width: 8
+Style:EBFS01
+
+[Part:EBYTInvoiceAmtwordandamount]
+Left Part: EBYTAmountinWord
+Right Part:EBYTInvoiceAmount
+Border: Thick Cover
+Common Border: Yes
+
+[Part:EBYTAmountinWord]
+Line:EBYTAmountinWord
+
+[Line:EBYTAmountinWord]
+Field: Medium Prompt, Name Field
+Local: Field: Medium Prompt: Set as: "Amount In Words"
+Local: Field: Medium Prompt:Style:EBFS
+Local: Field: Name Field: Set as:$$InWords:$Amount +" "+ "Only."
+Local: Field: Name Field: Full Width: Yes
+Local: Field: Name Field: Line:0
+Local: Field: Name Field:Style:EBFS01
+Space Top:0.25
+Space Bottom:0.25
+
+[Part:EBYTInvoiceAmount]
+Line:EBYTInvoiceAmount
+
+[Line:EBYTInvoiceAmount]
+Field: Name Field, Amount Field
+Local: Field: Name Field: Set as: "Invoice Total"
+Local: Field: Name Field: Border: Thick Left
+Local: Field: Name Field: Width:26.5
+Local: Field: Name Field: Align: Right
+Local: Field: Name Field: Style:EBFS
+Local: Field: Amount Field: Set as: $Amount
+Local: Field: Amount Field: Width:8
+Local: Field: Amount Field: Border: Thick Left
+Local: Field: Amount Field: Style:EBFS
+Space Top:0.25
+Space Bottom:0.25
+
+[Part:EBYTSingnatureClosingBalanceTerms]
+Left Part: EBYTTermsandClosing
+Right Part: EBYTCustomer Signature, EBYTSignature
+Border:Thick Box
+
+[Part:EBYTTermsandClosing]
+Part: EBYTTermsPart, EBYTClosing
+Vertical:Yes
+Width:50% Page
+
+[Part:EBYTTermsPart]
+Line:EBYTTermsPart
+Border: Thick Bottom
+
+[Part:EBYTClosing]
+Line: EBYTOutStandingDetailsTitle, EBYTPreviuosOutstandingBalance, EBYTCurrentInvoice, EBYTTotalOutStanding
+
+[Line:EBYTOutStandingDetailsTitle]
+Field:Name Field
+Local: Field: Name Field: Set as: "Outstanding Details"
+Local: Field: Name Field: Full Width: Yes
+Local: Field: Name Field: Style:EBFS
+Space Top:0.5
+
+[Line:EBYTPreviuosOutstandingBalance]
+Field: Medium Prompt, Amount Field
+Local: Field: Medium Prompt: Set as:"Previous Outstanding"
+Local: Field: Medium Prompt: Style:EBFS
+Local: Field: Amount Field: Set as:$$ToValue:($date-1):$ClosingBalance:Ledger:$$CollectionField:$LedgerName:1:LedgerEntries
+Local: Field: Amount Field:Style:EBFS01
+
+[Line:EBYTCurrentInvoice]
+Field: Medium Prompt, Amount Field
+Local: Field: Medium Prompt: Set as:"Current Invoice"
+Local: Field: Medium Prompt: Style:EBFS
+Local: Field: Amount Field: Set as:$Amount
+Local: Field: Amount Field:Style:EBFS01
+
+[Line:EBYTTotalOutStanding]
+Field: Medium Prompt, Amount Field
+Local: Field: Medium Prompt: Set as:"Total Outstanding"
+Local: Field: Medium Prompt: Style:EBFS
+Local: Field: Amount Field: Set as:$$ToValue:$date:$ClosingBalance:Ledger:$$CollectionField:$LedgerName:1:LedgerEntries
+Local: Field: Amount Field:Style:EBFS01
+
+[Part:EBYTCustomer Signature]
+Line: For EBYTCustomer Signature, EBYTAcceptance
+Border: Thick Left
+
+[Line:For EBYTCustomer Signature]
+Field: Name Field
+Local: Field: Name Field: Set as: "For" +" "+ @@SimpleOtherPartyName
+Local: Field: Name Field: Full Width: Yes
+Local: Field: Name Field: Style: EBFS
+Local: Field: Name Field: Align: Center
+Space Top:0.5
+
+[Part:EBYTSignature]
+Line: ForEBYTSignature, EBYTAuthorised
+Border: Thick Left
+Width:36.5
+
+[Line:ForEBYTSignature]
+Field: Name Field
+Local: Field: Name Field: Set as: "For" +" "+ @@CmpMailName
+Local: Field: Name Field: Full Width: Yes
+Local: Field: Name Field: Style: EBFS
+Local: Field: Name Field: Align: Center
+Space Top:0.5
+
+[Line:EBYTAuthorised]
+Field: Name Field
+Local: Field: Name Field: Set as: "Authorized Signatory"
+Local: Field: Name Field: Full Width: Yes
+Local: Field: Name Field: Style: EBFS
+Local: Field: Name Field: Align: Center
+Space Top:3
+
+[Part:EBYTJuri]
+Line:EBYT Juridiction
+
+[Line:EBYT Juridiction]
+Field: Name Field
+Local: Field: Name Field: Full Width: Yes
+Local: Field: Name Field: Align: Center
+Local: Field: Name Field: Set as: "Subject To Ramgarh Jurisdiction" ;;CHANGE AS PER YOU REQUIRMENT
+
+[Line:EBYTTermsPart]
+Field: Name Field
+Local: Field: Name Field:Set as: "Once Goods Sold Can not be taken back" ;;CHANGE AS PER YOU REQUIRMENT
+Local: Field: Name Field: Style: EBFS
+Local: Field: Name Field: Align: Center
+Local: Field: Name Field: Full Width: Yes
+
+[Line:EBYTAcceptance]
+Field: Name Field
+Local: Field: Name Field: Set as: "Thank You Visit Again." ;;CHANGE AS PER YOU REQUIRMENT
+Local: Field: Name Field: Full Width: Yes
+Local: Field: Name Field: Style: EBFS01
+Local: Field: Name Field: Line:0
+Space Top:3
+
+;**********************************************************;
+;*********************================*********************;
+;*********************| Explore Busy |*********************;
+;*********************================*********************;
+;**********************************************************;
+
